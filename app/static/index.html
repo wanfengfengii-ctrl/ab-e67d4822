@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>玻璃穹顶裂纹监测 · 位移联合裁决</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #181f26; --panel2: #1f2830; --line: #2d3a45;
+    --ink: #e6edf3; --dim: #8fa1b0; --accent: #4da3ff; --ok: #3fb96b;
+    --bad: #e5534b; --warn: #d9a436; --chip: #243039;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.55 -apple-system, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--ink); }
+  header { padding: 16px 22px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+  header .sub { color: var(--dim); font-size: 12.5px; }
+  main { display: grid; grid-template-columns: minmax(430px, 1.05fr) minmax(420px, 1fr);
+    gap: 16px; padding: 16px 22px 40px; align-items: start; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .panel h2 { font-size: 13.5px; margin: 0 0 10px; color: var(--accent);
+    letter-spacing: .5px; font-weight: 650; }
+  .pcard { background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 11px; margin-bottom: 9px; }
+  .pcard .row { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+  .pcard .pidx { color: var(--dim); font-variant-numeric: tabular-nums;
+    min-width: 20px; font-size: 12px; }
+  .pcard .pname { font-weight: 650; min-width: 42px; }
+  input { background: #10161b; border: 1px solid var(--line); color: var(--ink);
+    border-radius: 5px; padding: 3px 6px; width: 62px; font: inherit;
+    font-variant-numeric: tabular-nums; }
+  input.name { width: 64px; }
+  input.wide { width: 86px; }
+  label.cb { color: var(--dim); font-size: 12px; display: inline-flex;
+    align-items: center; gap: 4px; }
+  .cands { margin: 7px 0 2px 20px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .cand { display: inline-flex; align-items: center; gap: 4px;
+    background: var(--chip); border: 1px solid var(--line); border-radius: 6px;
+    padding: 2px 6px; font-size: 12.5px; }
+  .cand .no { color: var(--dim); font-size: 11px; }
+  .cand input { width: 48px; }
+  button { background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 12px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent);
+    color: #08131f; font-weight: 650; }
+  button.ghost { padding: 2px 8px; font-size: 12px; color: var(--dim); }
+  .toolbar { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.8px; }
+  th { text-align: left; color: var(--dim); font-weight: 550; font-size: 12px;
+    padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  td { padding: 4px 6px; border-bottom: 1px solid #232e37;
+    font-variant-numeric: tabular-nums; }
+  tr.badrow td { background: rgba(229,83,75,.10); }
+  .mini-row { display: flex; gap: 6px; align-items: center; margin-bottom: 5px;
+    flex-wrap: wrap; }
+  .mini-row input { width: 64px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 99px;
+    font-size: 11.5px; border: 1px solid; }
+  .badge.ok { color: var(--ok); border-color: #2c5e3d; background: rgba(63,185,107,.09); }
+  .badge.no { color: var(--bad); border-color: #6e2e2a; background: rgba(229,83,75,.10); }
+  .banner { border-radius: 9px; padding: 11px 14px; margin-bottom: 13px;
+    border: 1px solid; font-size: 13.3px; }
+  .banner.ok { border-color: #2c5e3d; background: rgba(63,185,107,.08); }
+  .banner.no { border-color: #6e2e2a; background: rgba(229,83,75,.09); }
+  .banner .big { font-weight: 650; font-size: 14.5px; margin-bottom: 2px; }
+  .ev { background: #1a1416; border: 1px solid #53302d; border-radius: 8px;
+    padding: 9px 12px; margin-top: 9px; font-size: 12.8px; }
+  .ev code { color: #f0a8a2; }
+  .kv { color: var(--dim); } .kv b { color: var(--ink); font-weight: 600; }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 3px; }
+  .chip { background: var(--chip); border: 1px solid var(--line); border-radius: 5px;
+    padding: 1px 7px; font-size: 11.8px; color: var(--dim);
+    text-decoration: line-through; text-decoration-color: #5a6b78; }
+  .chip.sel { color: #bfe3c9; border-color: #2c5e3d; text-decoration: none;
+    background: rgba(63,185,107,.08); }
+  .choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    gap: 8px; }
+  .choice { background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; font-size: 12.4px; }
+  .choice .nm { font-weight: 650; margin-bottom: 3px; }
+  canvas { background: #0c1116; border: 1px solid var(--line); border-radius: 8px;
+    width: 100%; display: block; }
+  .canvas-wrap { margin-bottom: 10px; }
+  .canvas-wrap .cap { color: var(--dim); font-size: 12px; margin: 2px 2px 5px;
+    display: flex; justify-content: space-between; }
+  .muted { color: var(--dim); font-size: 12px; }
+  .err-inline { color: var(--bad); font-size: 12.5px; margin-top: 8px; min-height: 1em; }
+  .obj { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 6px;
+    font-variant-numeric: tabular-nums; }
+  .obj span b { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>玻璃穹顶裂纹监测 · 位移联合裁决</h1>
+  <span class="sub">每点恰选一条整数候选位移 · 严格保持三角面朝向 · 边长闭区间 · 非共端点边不相交/不相切 ·
+    目标序：最大位移² ↓ → 位移²和 ↓ → 候选序号字典序 ↓</span>
+</header>
+
+<main>
+  <!-- ===================== 左：草稿录入 ===================== -->
+  <div>
+    <div class="panel">
+      <h2>基准点与候选整数位移（5–8 点，每点 2–3 条；点序号自 0 起）</h2>
+      <div id="points"></div>
+    </div>
+
+    <div class="panel">
+      <h2>已登记三角面（顶点下标 a, b, c；朝向以原基线为准）</h2>
+      <div id="tris"></div>
+      <button class="ghost" id="addTri" type="button">+ 添加三角面</button>
+    </div>
+
+    <div class="panel">
+      <h2>已登记边与长度平方闭区间 [min, max]</h2>
+      <div id="edgetbl"></div>
+      <button class="ghost" id="addEdge" type="button">+ 添加边</button>
+    </div>
+
+    <div class="panel">
+      <div class="toolbar">
+        <button class="primary" id="submit" type="button">提交裁决</button>
+        <button id="sample" type="button">载入内置示例</button>
+        <button id="reset" type="button">清空草稿</button>
+      </div>
+      <div class="err-inline" id="editorErr"></div>
+    </div>
+  </div>
+
+  <!-- ===================== 右：裁决结果 ===================== -->
+  <div>
+    <div id="banner"></div>
+
+    <div class="panel">
+      <h2>网络几何证据（灰＝原位置，绿＝裁决采用位移，红叉为违例证据组合）</h2>
+      <div class="canvas-wrap">
+        <div class="cap"><span>原基线网</span><span class="muted">虚线为三角面对角线</span></div>
+        <canvas id="cvOrig" width="640" height="300"></canvas>
+      </div>
+      <div class="canvas-wrap">
+        <div class="cap"><span id="cvMovedCap">复测基线网</span><span class="muted">箭头为各点采用的位移</span></div>
+        <canvas id="cvMoved" width="640" height="300"></canvas>
+      </div>
+    </div>
+
+    <div class="panel" id="choicesPanel" hidden>
+      <h2>各点采用 / 未采用位移</h2>
+      <div class="choice-grid" id="choices"></div>
+    </div>
+
+    <div class="panel" id="edgesPanel" hidden>
+      <h2>各边实际长度平方（闭区间证据）</h2>
+      <table><thead><tr>
+        <th>#</th><th>边</th><th>实际长度²</th><th>允许闭区间</th><th>判定</th>
+      </tr></thead><tbody id="edgeRes"></tbody></table>
+    </div>
+
+    <div class="panel" id="trisPanel" hidden>
+      <h2>各三角面有向面积证据（二倍有向面积，符号即朝向）</h2>
+      <table><thead><tr>
+        <th>#</th><th>面</th><th>原 2×有向面积</th><th>复测 2×有向面积</th><th>朝向</th>
+      </tr></thead><tbody id="triRes"></tbody></table>
+    </div>
+  </div>
+</main>
+
+<script>
+"use strict";
+
+/* ---------------- 草稿状态 ---------------- */
+const LS_KEY = "dome-adjudicator-draft-v1";
+
+function freshDraft() {
+  return {
+    points: [
+      {name: "P0", x: 0, y: 0, cands: [{dx: 0, dy: 0}, {dx: 1, dy: 0}]},
+      {name: "P1", x: 4, y: 0, cands: [{dx: 0, dy: 0}, {dx: 0, dy: 1}]},
+      {name: "P2", x: 5, y: 3, cands: [{dx: 0, dy: 0}, {dx: -1, dy: 0}]},
+      {name: "P3", x: 2, y: 5, cands: [{dx: 0, dy: 0}, {dx: 0, dy: -1}]},
+      {name: "P4", x: -1, y: 3,
+       cands: [{dx: 0, dy: 0}, {dx: 1, dy: 0}, {dx: 1, dy: 1}]},
+    ],
+    triangles: [{a: 0, b: 1, c: 2}, {a: 0, b: 2, c: 3}, {a: 0, b: 3, c: 4}],
+    edges: [
+      {u: 0, v: 1, min_sq: 9, max_sq: 15},
+      {u: 1, v: 2, min_sq: 7, max_sq: 13},
+      {u: 2, v: 3, min_sq: 10, max_sq: 16},
+      {u: 3, v: 4, min_sq: 10, max_sq: 16},
+      {u: 4, v: 0, min_sq: 11, max_sq: 14},
+      {u: 0, v: 2, min_sq: 24, max_sq: 26},
+      {u: 0, v: 3, min_sq: 25, max_sq: 27},
+    ],
+  };
+}
+
+let draft = loadDraft();
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) { /* 忽略损坏草稿 */ }
+  return freshDraft();
+}
+function saveDraft() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(draft)); } catch (e) {}
+}
+
+/* ---------------- 草稿渲染 ---------------- */
+function intVal(inp, fallback) {
+  const v = parseInt(inp.value, 10);
+  return Number.isFinite(v) ? v : fallback;
+}
+
+function renderPoints() {
+  const box = document.getElementById("points");
+  box.innerHTML = "";
+  draft.points.forEach((p, i) => {
+    const card = document.createElement("div");
+    card.className = "pcard";
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      `<span class="pidx">#${i}</span>
+       <input class="name" data-k="name" value="${escapeAttr(p.name)}" aria-label="点名">
+       <label class="cb">x<input data-k="x" type="number" value="${p.x}"></label>
+       <label class="cb">y<input data-k="y" type="number" value="${p.y}"></label>`;
+    row.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("change", () => {
+        if (inp.dataset.k === "name") p.name = inp.value.trim() || `P${i}`;
+        else p[inp.dataset.k] = intVal(inp, 0);
+        saveDraft();
+      });
+    });
+    const cands = document.createElement("div");
+    cands.className = "cands";
+    p.cands.forEach((c, ci) => {
+      const chip = document.createElement("span");
+      chip.className = "cand";
+      chip.innerHTML =
+        `<span class="no">候选${ci + 1}</span>
+         <label class="cb">Δx<input data-k="dx" type="number" value="${c.dx}"></label>
+         <label class="cb">Δy<input data-k="dy" type="number" value="${c.dy}"></label>`;
+      chip.querySelectorAll("input").forEach(inp =>
+        inp.addEventListener("change", () => {
+          c[inp.dataset.k] = intVal(inp, 0);
+          saveDraft();
+        }));
+      if (p.cands.length > 2) {
+        const del = document.createElement("button");
+        del.className = "ghost";
+        del.type = "button";
+        del.textContent = "×";
+        del.title = "删除此候选";
+        del.addEventListener("click", () => { p.cands.splice(ci, 1); saveDraft(); renderAll(); });
+        chip.appendChild(del);
+      }
+      cands.appendChild(chip);
+    });
+    if (p.cands.length < 3) {
+      const add = document.createElement("button");
+      add.className = "ghost";
+      add.type = "button";
+      add.textContent = "+ 候选";
+      add.addEventListener("click", () => { p.cands.push({dx: 0, dy: 0}); saveDraft(); renderAll(); });
+      cands.appendChild(add);
+    }
+    const delp = document.createElement("button");
+    delp.className = "ghost";
+    delp.type = "button";
+    delp.textContent = draft.points.length <= 5 ? "至少保留 5 点" : "删除该点";
+    delp.disabled = draft.points.length <= 5;
+    delp.style.marginLeft = "auto";
+    delp.addEventListener("click", () => {
+      draft.points.splice(i, 1);
+      // 删除点会使旧下标失效，同时清空面与边，避免悬空引用。
+      draft.triangles = [];
+      draft.edges = [];
+      saveDraft(); renderAll();
+    });
+    row.appendChild(delp);
+    card.append(row, cands);
+    box.appendChild(card);
+  });
+  if (draft.points.length < 8) {
+    const add = document.createElement("button");
+    add.className = "ghost";
+    add.type = "button";
+    add.textContent = "+ 添加基准点（最多 8 个）";
+    add.addEventListener("click", () => {
+      const i = draft.points.length;
+      draft.points.push({name: `P${i}`, x: 0, y: 0,
+        cands: [{dx: 0, dy: 0}, {dx: 0, dy: 0}]});
+      saveDraft(); renderAll();
+    });
+    box.appendChild(add);
+  }
+}
+
+function renderTris() {
+  const box = document.getElementById("tris");
+  box.innerHTML = "";
+  draft.triangles.forEach((t, ti) => {
+    const r = document.createElement("div");
+    r.className = "mini-row";
+    r.innerHTML = `<span class="pidx muted">#${ti + 1}</span>`;
+    ["a", "b", "c"].forEach(k => {
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.value = t[k];
+      inp.title = `顶点 ${k} 的点序号`;
+      inp.addEventListener("change", () => { t[k] = intVal(inp, 0); saveDraft(); });
+      r.appendChild(inp);
+    });
+    const del = document.createElement("button");
+    del.className = "ghost"; del.type = "button"; del.textContent = "删除";
+    del.addEventListener("click", () => { draft.triangles.splice(ti, 1); saveDraft(); renderAll(); });
+    r.appendChild(del);
+    box.appendChild(r);
+  });
+}
+
+function renderEdges() {
+  const box = document.getElementById("edgetbl");
+  box.innerHTML = "";
+  draft.edges.forEach((e, ei) => {
+    const r = document.createElement("div");
+    r.className = "mini-row";
+    r.innerHTML = `<span class="pidx muted">#${ei + 1}</span>`;
+    const mk = (key, title, wide) => {
+      const inp = document.createElement("input");
+      inp.type = "number"; inp.value = e[key]; inp.title = title;
+      if (wide) inp.classList.add("wide");
+      inp.addEventListener("change", () => { e[key] = intVal(inp, 0); saveDraft(); });
+      r.appendChild(inp);
+    };
+    mk("u", "端点 u 的点序号");
+    mk("v", "端点 v 的点序号");
+    mk("min_sq", "长度平方下界");
+    mk("max_sq", "长度平方上界");
+    const del = document.createElement("button");
+    del.className = "ghost"; del.type = "button"; del.textContent = "删除";
+    del.addEventListener("click", () => { draft.edges.splice(ei, 1); saveDraft(); renderAll(); });
+    r.appendChild(del);
+    box.appendChild(r);
+  });
+}
+
+function renderAll() {
+  renderPoints(); renderTris(); renderEdges();
+}
+
+document.getElementById("addTri").addEventListener("click", () => {
+  draft.triangles.push({a: 0, b: 1, c: 2}); saveDraft(); renderTris();
+});
+document.getElementById("addEdge").addEventListener("click", () => {
+  draft.edges.push({u: 0, v: 1, min_sq: 0, max_sq: 100}); saveDraft(); renderEdges();
+});
+document.getElementById("sample").addEventListener("click", async () => {
+  try {
+    const s = await (await fetch("/api/sample")).json();
+    draft = {
+      points: s.points.map(p => ({name: p.name, x: p.x, y: p.y,
+        cands: s.candidates[s.points.indexOf(p)]})),
+      triangles: s.triangles.map(t => ({...t})),
+      edges: s.edges.map(e => ({...e})),
+    };
+  } catch (e) {
+    draft = freshDraft();
+  }
+  saveDraft(); renderAll(); clearResult();
+});
+document.getElementById("reset").addEventListener("click", () => {
+  draft = {points: [], triangles: [], edges: []};
+  saveDraft(); renderAll(); clearResult();
+});
+
+function escapeAttr(s) {
+  return String(s).replace(/[&<>"]/g, ch =>
+    ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[ch]));
+}
+
+/* ---------------- 提交与校验 ---------------- */
+function collectPayload() {
+  const errs = [];
+  if (![5, 6, 7, 8].includes(draft.points.length))
+    errs.push(`基准点数量必须为 5–8 个（当前 ${draft.points.length}）`);
+  draft.points.forEach((p, i) => {
+    if (![2, 3].includes(p.cands.length))
+      errs.push(`点 #${i} ${p.name} 必须有 2–3 条候选位移（当前 ${p.cands.length}）`);
+  });
+  const n = draft.points.length;
+  draft.triangles.forEach((t, i) => {
+    [t.a, t.b, t.c].forEach(v => {
+      if (!(0 <= v && v < n)) errs.push(`三角面 #${i + 1} 引用了越界点下标 ${v}`);
+    });
+    if (new Set([t.a, t.b, t.c]).size !== 3)
+      errs.push(`三角面 #${i + 1} 三个顶点必须互不相同`);
+  });
+  draft.edges.forEach((e, i) => {
+    [e.u, e.v].forEach(v => {
+      if (!(0 <= v && v < n)) errs.push(`边 #${i + 1} 引用了越界点下标 ${v}`);
+    });
+    if (e.u === e.v) errs.push(`边 #${i + 1} 两个端点不能相同`);
+    if (e.min_sq > e.max_sq) errs.push(`边 #${i + 1} 的下界大于上界`);
+  });
+  const el = document.getElementById("editorErr");
+  el.textContent = errs.length ? errs[0] : "";
+  if (errs.length) return null;
+
+  return {
+    points: draft.points.map(p => ({name: p.name, x: p.x, y: p.y})),
+    candidates: draft.points.map(p => p.cands.map(c => ({dx: c.dx, dy: c.dy}))),
+    triangles: draft.triangles.map(t => ({a: t.a, b: t.b, c: t.c})),
+    edges: draft.edges.map(e => ({u: e.u, v: e.v, min_sq: e.min_sq, max_sq: e.max_sq})),
+  };
+}
+
+document.getElementById("submit").addEventListener("click", async () => {
+  const payload = collectPayload();
+  if (!payload) return;
+  const btn = document.getElementById("submit");
+  btn.disabled = true; btn.textContent = "裁决中…";
+  try {
+    const res = await fetch("/api/solve", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    renderResult(payload, data, res.ok);
+  } catch (e) {
+    bannerOnly(false, `请求失败：${e}`);
+  } finally {
+    btn.disabled = false; btn.textContent = "提交裁决";
+  }
+});
+
+/* ---------------- 结果渲染 ---------------- */
+function clearResult() {
+  document.getElementById("banner").innerHTML = "";
+  document.getElementById("choicesPanel").hidden = true;
+  document.getElementById("edgesPanel").hidden = true;
+  document.getElementById("trisPanel").hidden = true;
+  drawOrig(null); drawMoved(null);
+  document.getElementById("cvMovedCap").textContent = "复测基线网";
+}
+
+function bannerOnly(ok, msg) {
+  clearResult();
+  document.getElementById("banner").innerHTML =
+    `<div class="banner ${ok ? "ok" : "no"}"><div class="big">${msg}</div></div>`;
+}
+
+function renderResult(payload, data, httpOk) {
+  clearResult();
+  const banner = document.getElementById("banner");
+  if (data.error === "invalid_problem" || !httpOk) {
+    banner.innerHTML = `<div class="banner no"><div class="big">录入草稿非法，服务端拒绝裁决</div>
+      <div>${escapeHtml(data.message || "未知错误")}</div></div>`;
+    drawOrig(payload);
+    return;
+  }
+
+  if (data.feasible) {
+    banner.innerHTML = `<div class="banner ok">
+      <div class="big">裁决成立：存在满足全部约束的联合位移方案（已枚举 ${data.combinations_checked} 种组合）</div>
+      <div class="obj">
+        <span>最大位移平方 <b>${data.objective.max_displacement_sq}</b></span>
+        <span>位移平方和 <b>${data.objective.sum_displacement_sq}</b></span>
+        <span class="muted">在上述目标序下全局最优；候选序号相同时不再变动。</span>
+      </div></div>`;
+    renderChoices(data);
+    renderEdgeTable(data, false);
+    renderTriTable(data, false);
+    drawOrig(payload);
+    drawMoved(payload, data, null);
+    document.getElementById("cvMovedCap").textContent = "复测基线网（裁决方案）";
+  } else {
+    const v = data.violation || {};
+    const kindText = {orientation: "朝向约束", length: "长度约束",
+      intersection: "边界不相交约束"}[v.kind] || "约束";
+    banner.innerHTML = `<div class="banner no">
+      <div class="big">无可行方案：首个破坏${kindText}的证据如下（已枚举全部 ${data.combinations_checked} 种组合，不存在局部可用的伪结论）</div>
+      <div>${escapeHtml(v.message || "")}</div>
+      <div class="ev">${detailHtml(v.kind, v.detail)}</div></div>`;
+    renderEdgeTable(data, true);
+    renderTriTable(data, true);
+    drawOrig(payload);
+    drawMoved(payload, data, v);
+    document.getElementById("cvMovedCap").textContent =
+      v.detail && v.detail.candidate_indices ? "违例证据组合（红）" : "候选可达位置（红点）";
+  }
+}
+
+function detailHtml(kind, d) {
+  if (!d) return "";
+  if (kind === "orientation" && d.candidate_indices) {
+    return `面 <code>${(d.names || []).join("、")}</code>：二倍有向面积 ` +
+      `<code>${d.original_signed_double_area}</code> → <code>${d.actual_signed_double_area}</code>，` +
+      `符号翻转或归零；该组合按点序选择候选序号 ` +
+      `<code>[${d.candidate_indices.map(x => x + 1).join(", ")}]</code>。`;
+  }
+  if (kind === "length" && d.candidate_indices) {
+    return `边 <code>${(d.names || []).join("、")}</code>：实际长度平方
+      <code>${d.actual_length_sq}</code> ∉ [<code>${d.min_sq}</code>, <code>${d.max_sq}</code>]；
+      该组合候选序号 <code>[${d.candidate_indices.map(x => x + 1).join(", ")}]</code>。`;
+  }
+  if (kind === "intersection") {
+    return `非共端点边 <code>${(d.edge_i_names || []).join("、")}</code> 与
+      <code>${(d.edge_j_names || []).join("、")}</code> 存在公共点（相交或相切）；
+      该组合候选序号 <code>[${(d.candidate_indices || []).map(x => x + 1).join(", ")}]</code>。`;
+  }
+  return `<code>${escapeHtml(JSON.stringify(d))}</code>`;
+}
+
+function renderChoices(data) {
+  const box = document.getElementById("choices");
+  box.innerHTML = "";
+  data.choices.forEach(ch => {
+    const d = document.createElement("div");
+    d.className = "choice";
+    d.innerHTML =
+      `<div class="nm">#${ch.point_index} ${escapeHtml(ch.point_name)}</div>
+       <div class="kv">原坐标 (<b>${ch.original.x}</b>, <b>${ch.original.y}</b>)
+         → 复测 (<b>${ch.moved.x}</b>, <b>${ch.moved.y}</b>)</div>
+       <div class="chips">
+         <span class="chip sel">候选${ch.selected_index}：(${ch.selected.dx}, ${ch.selected.dy})
+           ｜位移² ${ch.displacement_sq} ✓ 采用</span>
+         ${ch.rejected.map(r =>
+           `<span class="chip">候选${r.index}：(${r.dx}, ${r.dy}) ｜位移² ${r.displacement_sq}</span>`
+         ).join("")}
+       </div>`;
+    box.appendChild(d);
+  });
+  document.getElementById("choicesPanel").hidden = false;
+}
+
+function renderEdgeTable(data, infeasible) {
+  const tb = document.getElementById("edgeRes");
+  tb.innerHTML = "";
+  (data.edges || []).forEach(e => {
+    const tr = document.createElement("tr");
+    if (!e.within) tr.className = "badrow";
+    tr.innerHTML =
+      `<td>${e.edge_index}</td><td>${e.names.map(escapeHtml).join("–")}</td>
+       <td>${e.length_sq}</td><td>[${e.min_sq}, ${e.max_sq}]</td>
+       <td><span class="badge ${e.within ? "ok" : "no"}">${e.within ? "落在闭区间" : "越界"}</span></td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById("edgesPanel").hidden = infeasible || !(data.edges || []).length;
+}
+
+function renderTriTable(data, infeasible) {
+  const tb = document.getElementById("triRes");
+  tb.innerHTML = "";
+  (data.triangles || []).forEach(t => {
+    const tr = document.createElement("tr");
+    if (!t.preserved) tr.className = "badrow";
+    const sign = x => x > 0 ? "＋" : (x < 0 ? "－" : "0");
+    tr.innerHTML =
+      `<td>${t.triangle_index}</td><td>${t.names.map(escapeHtml).join("、")}</td>
+       <td>${t.original_signed_double_area}（${sign(t.original_signed_double_area)}）</td>
+       <td>${t.moved_signed_double_area}（${sign(t.moved_signed_double_area)}）</td>
+       <td><span class="badge ${t.preserved ? "ok" : "no"}">${
+         t.preserved ? "朝向保持" : "翻折/退化"}</span></td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById("trisPanel").hidden = infeasible || !(data.triangles || []).length;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, ch =>
+    ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[ch]));
+}
+
+/* ---------------- Canvas 可视化 ---------------- */
+function drawNetwork(canvas, payload, coords, opts = {}) {
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  if (!payload || !payload.points.length) return;
+
+  // 坐标范围（同时纳入原始与复测点，两图同比例便于对照）。
+  const all = payload.points.map(p => [p.x, p.y]).concat(coords || []);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  all.forEach(([x, y]) => {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  });
+  if (!isFinite(minX)) { minX = -1; maxX = 1; minY = -1; maxY = 1; }
+  if (maxX - minX < 2) { maxX += 1; minX -= 1; }
+  if (maxY - minY < 2) { maxY += 1; minY -= 1; }
+  const pad = 34;
+  const sx = (W - 2 * pad) / (maxX - minX);
+  const sy = (H - 2 * pad) / (maxY - minY);
+  const sc = Math.min(sx, sy);
+  const X = x => pad + (x - minX) * sc;
+  const Y = y => H - pad - (y - minY) * sc;
+
+  const hlPair = opts.highlightPair || null;
+  const hlTri = opts.highlightTriangle;
+
+  // 三角面淡色填充。
+  (payload.triangles || []).forEach((t, ti) => {
+    const ps = [coords[t.a], coords[t.b], coords[t.c]];
+    ctx.beginPath();
+    ctx.moveTo(X(ps[0][0]), Y(ps[0][1]));
+    ctx.lineTo(X(ps[1][0]), Y(ps[1][1]));
+    ctx.lineTo(X(ps[2][0]), Y(ps[2][1]));
+    ctx.closePath();
+    ctx.fillStyle = hlTri === ti ? "rgba(229,83,75,0.18)" : "rgba(77,163,255,0.07)";
+    ctx.fill();
+  });
+
+  // 边。
+  payload.edges.forEach((e, ei) => {
+    const p = coords[e.u], q = coords[e.v];
+    let hot = false;
+    if (hlPair) hot = ei === hlPair[0] || ei === hlPair[1];
+    ctx.beginPath();
+    ctx.moveTo(X(p[0]), Y(p[1]));
+    ctx.lineTo(X(q[0]), Y(q[1]));
+    ctx.strokeStyle = hot ? "#e5534b" : "rgba(170,195,212,0.65)";
+    ctx.lineWidth = hot ? 3 : 1.4;
+    ctx.stroke();
+  });
+
+  // 位移箭头（从原点到复测点）。
+  if (opts.arrows) {
+    payload.points.forEach((p, i) => {
+      const m = coords[i];
+      if (p.x === m[0] && p.y === m[1]) return;
+      arrow(ctx, X(p.x), Y(p.y), X(m[0]), Y(m[1]),
+        opts.badMoves ? "rgba(229,83,75,0.85)" : "rgba(63,185,107,0.85)");
+    });
+  }
+
+  // 原始位置虚影（仅复测图）。
+  if (opts.arrows || opts.reach) {
+    payload.points.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(X(p.x), Y(p.y), 3.2, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(143,161,176,0.7)";
+      ctx.setLineDash([2, 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+    if (opts.reach) {
+      opts.reach.forEach(rset => rset.forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(X(x), Y(y), 5, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(229,83,75,0.55)";
+        ctx.stroke();
+      }));
+    }
+  }
+
+  // 点与标签。
+  payload.points.forEach((p, i) => {
+    const m = coords[i];
+    ctx.beginPath();
+    ctx.arc(X(m[0]), Y(m[1]), 4, 0, Math.PI * 2);
+    ctx.fillStyle = opts.arrows ? "#3fb96b" : "#cfe3f5";
+    ctx.fill();
+    ctx.fillStyle = "#9fb3c4";
+    ctx.font = "11px sans-serif";
+    ctx.fillText(p.name, X(m[0]) + 6, Y(m[1]) - 6);
+  });
+}
+
+function arrow(ctx, x1, y1, x2, y2, color) {
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  const ang = Math.atan2(y2 - y1, x2 - x1);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - 8 * Math.cos(ang - 0.4), y2 - 8 * Math.sin(ang - 0.4));
+  ctx.lineTo(x2 - 8 * Math.cos(ang + 0.4), y2 - 8 * Math.sin(ang + 0.4));
+  ctx.closePath(); ctx.fill();
+}
+
+function drawOrig(payload) {
+  const cv = document.getElementById("cvOrig");
+  if (!payload) { cv.getContext("2d").clearRect(0, 0, cv.width, cv.height); return; }
+  const coords = payload.points.map(p => [p.x, p.y]);
+  drawNetwork(cv, payload, coords, {});
+}
+
+function drawMoved(payload, data, violation) {
+  const cv = document.getElementById("cvMoved");
+  if (!payload) { cv.getContext("2d").clearRect(0, 0, cv.width, cv.height); return; }
+
+  if (data && data.feasible) {
+    const coords = data.moved_points.map(m => [m.x, m.y]);
+    drawNetwork(cv, payload, coords, {arrows: true});
+    return;
+  }
+
+  // 不可行：优先画出违例证据组合；全局不可行的朝向证据则画所有可达位置。
+  const d = violation && violation.detail;
+  if (d && Array.isArray(d.candidate_indices)) {
+    const coords = payload.points.map((p, i) => {
+      const k = d.candidate_indices[i];
+      const c = payload.candidates[i][k];
+      return [p.x + c.dx, p.y + c.dy];
+    });
+    const opts = {arrows: true, badMoves: true};
+    if (violation.kind === "intersection")
+      opts.highlightPair = [d.edge_i, d.edge_j];
+    if (violation.kind === "orientation")
+      opts.highlightTriangle = d.triangle_index;
+    drawNetwork(cv, payload, coords, opts);
+  } else if (d && violation.kind === "orientation" && d.reachable_positions) {
+    const coords = payload.points.map(p => [p.x, p.y]);
+    const reach = payload.points.map(p => {
+      const key = p.name;
+      return (d.reachable_positions[key] || []).map(([x, y]) => [x, y]);
+    });
+    drawNetwork(cv, payload, coords, {reach, highlightTriangle: d.triangle_index});
+  } else {
+    const coords = payload.points.map(p => [p.x, p.y]);
+    drawNetwork(cv, payload, coords, {});
+  }
+}
+
+/* ---------------- 启动 ---------------- */
+renderAll();
+</script>
+</body>
+</html>

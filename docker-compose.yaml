@@ -1,0 +1,31 @@
+services:
+  web:
+    build: .
+    image: dome-adjudicator:latest
+    ports:
+      # 宿主机端口可配置：复制 .env.example 为 .env 并修改 HOST_PORT，
+      # 或 HOST_PORT=9000 docker compose up。
+      - "${HOST_PORT:-8000}:8000"
+    environment:
+      PORT: "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 3s
+    restart: unless-stopped
+
+  # 一次性校验服务：等待 web 通过健康检查后，运行代码测试、构建检查与
+  # 裁决 API 冒烟；全部成功则退出码 0，否则非零（docker compose 可直接上报）。
+  verify:
+    build: .
+    image: dome-adjudicator:latest
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      BASE_URL: "http://web:8000"
+    entrypoint: ["/srv/scripts/entrypoint.sh"]
+    command: ["verify"]
+    restart: "no"
